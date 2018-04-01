@@ -120,7 +120,6 @@ public class RegisterAccount {
 		return register(name, passwd, proxy);
 	}
 
-
 	public static User register(String name, String passwd) {
 		return register(name, passwd, null);
 	}

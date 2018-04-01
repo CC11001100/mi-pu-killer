@@ -6,6 +6,7 @@ import cc11001100.proxy.mipu.domain.Proxy;
 import cc11001100.proxy.mipu.domain.User;
 import cc11001100.proxy.mipu.register.XunProxy;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpHost;
@@ -16,6 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -35,9 +37,12 @@ public class MiPuKiller {
 	private void init() {
 		JSONObject config = readConfig();
 		initUserList(config);
+		registerSaveConfigHook();
+	}
+
+	private void registerSaveConfigHook() {
 		Runtime.getRuntime().removeShutdownHook(new Thread(() -> {
-
-
+			// save config
 		}));
 	}
 
@@ -50,16 +55,17 @@ public class MiPuKiller {
 		} catch (IOException e) {
 			logger.warn("Not found config file.");
 		}
-		return JSON.parseObject(configContent);
+		return Optional.ofNullable(JSON.parseObject(configContent)).orElse(new JSONObject());
 	}
 
 	private void initUserList(JSONObject config) {
-		userList = config.getJSONArray("users").stream().map(userWrapper -> {
-			JSONObject user = (JSONObject) userWrapper;
-			String name = user.getString("name");
-			String passwd = user.getString("passwd");
-			return new User(name, passwd);
-		}).collect(Collectors.toList());
+		userList = Optional.ofNullable(config.getJSONArray("users")).orElse(new JSONArray())
+			.stream().map(userWrapper -> {
+				JSONObject user = (JSONObject) userWrapper;
+				String name = user.getString("name");
+				String passwd = user.getString("passwd");
+				return new User(name, passwd);
+			}).collect(Collectors.toList());
 
 		if (userList.size() < DEFAULT_USER_NUMBER) {
 			supplementUser(DEFAULT_USER_NUMBER);
@@ -76,13 +82,12 @@ public class MiPuKiller {
 				proxyListForRegister = XunProxy.getXunFreeProxy();
 			}
 
-			User user = null;
 			try {
-				user = RegisterAccount.register(proxyListForRegister.remove(0));
+				User user = RegisterAccount.register(proxyListForRegister.remove(0));
+				userList.add(user);
 			} catch (RegisterException e) {
 				e.printStackTrace();
 			}
-			userList.add(user);
 		}
 	}
 

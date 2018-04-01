@@ -1,4 +1,4 @@
-package cc11001100.proxy.mipu;
+package cc11001100.proxy.mipu.register;
 
 import cc11001100.ocr.OcrUtil;
 import cc11001100.ocr.clean.SingleColorFilterClean;
@@ -6,6 +6,7 @@ import cc11001100.proxy.mipu.domain.User;
 import cc11001100.proxy.mipu.exception.RegisterException;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.apache.http.HttpHost;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.message.BasicNameValuePair;
 
@@ -25,7 +26,8 @@ public class RegisterAccount {
 	private static String[] email = {
 		"qq.com",
 		"163.com",
-		"foo.com"
+		"139.com",
+		"189.com"
 	};
 
 	private static String passwdChar = "qwejzxcbnmWERXVBNM1234567890,.,.,.,.";
@@ -33,6 +35,7 @@ public class RegisterAccount {
 	private static OcrUtil ocrUtil;
 
 	static {
+		// 有一些冗余，但成功率可以了
 		Map<Integer, String> dictionaryMap = new HashMap<>();
 		dictionaryMap.put(959516722, "g");
 		dictionaryMap.put(-975656737, "W");
@@ -103,19 +106,34 @@ public class RegisterAccount {
 		ocrUtil.loadDictionaryMap(dictionaryMap);
 	}
 
+	/**
+	 * 频繁注册会被封IP，如IP被封使用代理 {@link #register(HttpHost)}
+	 * @return
+	 */
 	public static User register() {
-		String name = randomName();
-		String passwd = randomPasswd();
-		return register(name, passwd);
+		return register(null);
 	}
 
-	public static User register(String name, String passwd) {
+	public static User register(HttpHost proxy) {
+		String name = randomName();
+		String passwd = randomPasswd();
+		return register(name, passwd, proxy);
+	}
 
+
+	public static User register(String name, String passwd) {
+		return register(name, passwd, null);
+	}
+
+	public static User register(String name, String passwd, HttpHost proxy) {
 		try {
-			byte[] imgBytes = Request.Get("https://proxy.mimvp.com/common/ygrcode.php").execute().returnContent().asBytes();
+			byte[] imgBytes = Request.Get("https://proxy.mimvp.com/common/ygrcode.php")
+				.viaProxy(proxy)
+				.execute().returnContent().asBytes();
 			BufferedImage img = ImageIO.read(new ByteArrayInputStream(imgBytes));
 			String rcode = ocrUtil.ocr(img);
 			String responseContent = Request.Post("https://proxy.mimvp.com/lib/user_regist_check.php")
+				.viaProxy(proxy)
 				.bodyForm(new BasicNameValuePair("user_email", name),
 					new BasicNameValuePair("user_pwd", passwd),
 					new BasicNameValuePair("user_rcode", rcode),
@@ -123,7 +141,7 @@ public class RegisterAccount {
 				.execute().returnContent().toString();
 			JSONObject json = JSON.parseObject(responseContent);
 			if (json.getIntValue("code") != 0) {
-				throw new RegisterException(responseContent);
+				throw new RegisterException(json.getString("code_msg"));
 			}
 
 			return new User(name, passwd);

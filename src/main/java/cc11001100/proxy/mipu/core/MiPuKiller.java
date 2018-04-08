@@ -98,8 +98,11 @@ public class MiPuKiller {
 	 */
 	public List<Proxy> get() {
 
+		String url = "https://proxyapi.mimvp.com/api/fetchopen.php?orderid=869060918302140800&num=20&result_fields=1,2,10,3,4,5,6,7,8,9&result_format=json";
+
+
+
 		return null;
 	}
-
 
 }

@@ -1,4 +1,4 @@
-## Mi-Pu Killer （挖坑中...）
+## Mi-Pu Killer
 
 可以免费使用米扑代理
 

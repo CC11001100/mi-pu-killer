@@ -4,30 +4,35 @@ import cc11001100.ocr.OcrUtil;
 import cc11001100.ocr.clean.SingleColorFilterClean;
 import cc11001100.proxy.mipu.domain.User;
 import cc11001100.proxy.mipu.exception.RegisterException;
-import com.alibaba.fastjson.JSON;
+import cc11001100.proxy.mipu.util.HttpUtil;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.http.HttpHost;
-import org.apache.http.client.fluent.Request;
+import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import static cc11001100.proxy.mipu.util.HttpUtil.getBytes;
 
 /**
  * @author CC11001100
  */
 public class RegisterAccount {
 
+	private static final Logger logger = LogManager.getLogger(RegisterAccount.class);
+
 	private static String[] email = {
-		"qq.com",
-		"163.com",
-		"139.com",
-		"189.com"
+			"qq.com",
+			"163.com",
+			"139.com",
+			"189.com"
 	};
 
 	private static String passwdChar = "qwejzxcbnmWERXVBNM1234567890,.,.,.,.";
@@ -104,10 +109,13 @@ public class RegisterAccount {
 
 		ocrUtil = new OcrUtil().setImageClean(new SingleColorFilterClean());
 		ocrUtil.loadDictionaryMap(dictionaryMap);
+
+		logger.info("load dictionary mapping");
 	}
 
 	/**
 	 * 频繁注册会被封IP，如IP被封使用代理 {@link #register(HttpHost)}
+	 *
 	 * @return
 	 */
 	public static User register() {
@@ -126,28 +134,26 @@ public class RegisterAccount {
 
 	public static User register(String name, String passwd, HttpHost proxy) {
 		try {
-			byte[] imgBytes = Request.Get("https://proxy.mimvp.com/common/ygrcode.php")
-				.viaProxy(proxy)
-				.execute().returnContent().asBytes();
+			byte[] imgBytes = getBytes("GET", "https://proxy.mimvp.com/common/ygrcode.php", proxy, null);
+			if (imgBytes == null) {
+				throw new RegisterException("cant get captcha img");
+			}
 			BufferedImage img = ImageIO.read(new ByteArrayInputStream(imgBytes));
 			String rcode = ocrUtil.ocr(img);
-			String responseContent = Request.Post("https://proxy.mimvp.com/lib/user_regist_check.php")
-				.viaProxy(proxy)
-				.bodyForm(new BasicNameValuePair("user_email", name),
+			List<NameValuePair> paramList = Arrays.asList(new BasicNameValuePair("user_email", name),
 					new BasicNameValuePair("user_pwd", passwd),
 					new BasicNameValuePair("user_rcode", rcode),
-					new BasicNameValuePair("forurl", "login.php"))
-				.execute().returnContent().toString();
-			JSONObject json = JSON.parseObject(responseContent);
+					new BasicNameValuePair("forurl", "login.php"));
+			JSONObject json = HttpUtil.getJson("POST", "https://proxy.mimvp.com/lib/user_regist_check.php", proxy, paramList);
 			if (json.getIntValue("code") != 0) {
 				throw new RegisterException(json.getString("code_msg"));
 			}
 
-			return new User(name, passwd);
+			logger.info("register success, user={}, passwd={}", name, passwd);
+			return new User(name, passwd, new GetToken(name, passwd).get(), LocalDateTime.now());
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RegisterException("io error.");
 		}
-		return new User();
 	}
 
 	private static String randomName() {

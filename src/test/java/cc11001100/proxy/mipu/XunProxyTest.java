@@ -1,6 +1,7 @@
 package cc11001100.proxy.mipu;
 
 import cc11001100.proxy.mipu.register.XunProxy;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -11,6 +12,7 @@ public class XunProxyTest {
 	/**
 	 * 测试获取免费ip列表是否正常
 	 */
+	@Ignore
 	@Test
 	public void testGetXunFreeProxy() {
 		XunProxy.getXunFreeProxy().forEach(System.out::println);

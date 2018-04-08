@@ -1,5 +1,6 @@
 package cc11001100.proxy.mipu.domain;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 /**
@@ -10,7 +11,8 @@ public class User {
 	private String name;
 	private String passwd;
 	private String token;
-	private Date registerDate;
+	private LocalDateTime registerDate;
+	private Boolean isDied;
 
 	public User() {
 	}
@@ -18,6 +20,21 @@ public class User {
 	public User(String name, String passwd) {
 		this.name = name;
 		this.passwd = passwd;
+	}
+
+	public User(String name, String passwd, String token, LocalDateTime registerDate) {
+		this.name = name;
+		this.passwd = passwd;
+		this.token = token;
+		this.registerDate = registerDate;
+	}
+
+	public Boolean getDied() {
+		return isDied;
+	}
+
+	public void setDied(Boolean died) {
+		isDied = died;
 	}
 
 	public String getName() {
@@ -44,11 +61,11 @@ public class User {
 		this.token = token;
 	}
 
-	public Date getRegisterDate() {
+	public LocalDateTime getRegisterDate() {
 		return registerDate;
 	}
 
-	public void setRegisterDate(Date registerDate) {
+	public void setRegisterDate(LocalDateTime registerDate) {
 		this.registerDate = registerDate;
 	}
 

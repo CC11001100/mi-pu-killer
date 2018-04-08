@@ -16,6 +16,7 @@ public class GetTokenTest {
 //		new GetToken(new User("13001049956@163.com", "123456qwerty")).login();
 	}
 
+	@Ignore
 	@Test
 	public void testGetToken() {
 

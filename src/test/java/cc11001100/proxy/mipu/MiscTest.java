@@ -1,6 +1,7 @@
 package cc11001100.proxy.mipu;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -15,6 +16,7 @@ public class MiscTest {
 	/**
 	 * 测试写临时目录
 	 */
+	@Ignore
 	@Test
 	public void test_001() throws IOException {
 

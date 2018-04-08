@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static cc11001100.proxy.mipu.register.RegisterAccount.register;
@@ -24,6 +25,7 @@ import static com.alibaba.fastjson.JSON.toJSONString;
 import static com.alibaba.fastjson.serializer.SerializerFeature.PrettyFormat;
 import static com.alibaba.fastjson.serializer.SerializerFeature.WriteMapNullValue;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.io.FileUtils.readFileToString;
@@ -86,8 +88,9 @@ public class MiPuKiller {
 	private void registerSaveConfigHook(JSONObject config) {
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			// save config
-			ofNullable(config).orElse(new JSONObject()).put("users", userList);
-			String configJsonString = toJSONString(config, WriteMapNullValue, PrettyFormat);
+			JSONObject configToSave = ofNullable(config).orElse(new JSONObject());
+			configToSave.put("users", userList);
+			String configJsonString = toJSONString(configToSave, WriteMapNullValue, PrettyFormat);
 			try {
 				FileUtils.writeStringToFile(new File(getConfigFilePath()), configJsonString, UTF_8);
 				logger.info("config file save success.");
@@ -98,7 +101,7 @@ public class MiPuKiller {
 	}
 
 	private void supplementUser(int n) {
-		List<HttpHost> proxyListForRegister = getXunFreeProxy();
+		List<HttpHost> proxyListForRegister = emptyList();
 		while (userList.size() < n) {
 
 			if (proxyListForRegister.isEmpty()) {
@@ -108,11 +111,11 @@ public class MiPuKiller {
 					throw new RegisterException("no proxy can use.");
 				}
 			}
+			HttpHost proxy = getXunFreeProxy().remove(0);
+			logger.info("use proxy {}:{} register", proxy.getHostName(), proxy.getPort());
 
 			try {
-				HttpHost proxy = getXunFreeProxy().remove(0);
-				logger.info("use proxy {}:{} register", proxy.getAddress(), proxy.getPort());
-				User user = register();
+				User user = register(proxy);
 				userList.add(user);
 				logger.info("register user {}", user.getName());
 			} catch (RegisterException e) {

@@ -30,8 +30,8 @@ public class HttpUtil {
 	public static Integer MAX_RETRY = 5;
 	private static Map<String, String> cookieMap = new HashMap<>();
 
-	public static byte[] getBytes(String method, String url, HttpHost proxy, List<NameValuePair> paramsList) {
-		for (int i = 1; i <= MAX_RETRY; i++) {
+	public static byte[] getBytes(String method, String url, HttpHost proxy, List<NameValuePair> paramsList, int times) {
+		for (int i = 1; i <= times; i++) {
 			Request request = null;
 
 			// method
@@ -60,6 +60,7 @@ public class HttpUtil {
 			request.addHeader("User-Agent",
 					"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.119 Safari/537.36");
 			request.addHeader("Cookie", joinCookie());
+			request.connectTimeout(1000 * 10).socketTimeout(1000 * 10);
 
 			try {
 				HttpResponse httpResponse = request.execute().returnResponse();
@@ -81,6 +82,10 @@ public class HttpUtil {
 			}
 		}
 		return null;
+	}
+
+	public static byte[] getBytes(String method, String url, HttpHost proxy, List<NameValuePair> paramsList) {
+		return getBytes(method, url, proxy, paramsList, MAX_RETRY);
 	}
 
 	public static String getText(String method, String url, HttpHost proxy, List<NameValuePair> paramsList) {

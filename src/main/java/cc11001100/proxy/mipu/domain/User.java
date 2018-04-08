@@ -12,7 +12,7 @@ public class User {
 	private String passwd;
 	private String token;
 	private LocalDateTime registerDate;
-	private Boolean isDied;
+	private Boolean isDied = false;
 
 	public User() {
 	}

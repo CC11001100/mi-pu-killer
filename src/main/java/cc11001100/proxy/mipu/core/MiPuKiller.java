@@ -131,7 +131,7 @@ public class MiPuKiller {
 	 */
 	public List<Proxy> get() {
 
-		String url = "https://proxyapi.mimvp.com/api/fetchopen.php?orderid=%s&num=20&result_fields=1,2,10,3,4,5,6,7,8,9&result_format=json";
+		String url = "https://proxyapi.mimvp.com/api/fetchopen.php?orderid=%s&num=20&filter_hour=12&result_fields=1,2,10,3,4,5,6,7,8,9&result_format=json";
 
 		while (true) {
 
@@ -144,7 +144,7 @@ public class MiPuKiller {
 			User user = userList.get(userListIndex);
 
 			// 检查当前取出的用户有效性，无效则移除
-			if (!checkUser(user)) {
+			if (checkUser(user)) {
 				userList.remove(user);
 				continue;
 			}
@@ -168,8 +168,8 @@ public class MiPuKiller {
 
 	private static boolean checkUser(User user) {
 		// 过期时间检查
-		LocalDateTime expireTime = LocalDateTime.now().plusHours(MAX_EFFECT_HOURS);
-		if (expireTime.isAfter(user.getRegisterDate())) {
+		LocalDateTime expireTime = user.getRegisterDate().plusHours(MAX_EFFECT_HOURS);
+		if (LocalDateTime.now().isAfter(expireTime)) {
 			user.setDied(true);
 		}
 

@@ -3,6 +3,8 @@ package cc11001100.proxy.mipu;
 import cc11001100.proxy.mipu.core.MiPuKiller;
 import org.junit.Test;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -14,10 +16,13 @@ public class MiPuKillerTest {
 	public void test_001() {
 
 		MiPuKiller killer = new MiPuKiller();
+		Set<String> ipSet = new HashSet<>();
 		for (int i = 0; i < 10; i++) {
 			System.out.println(i);
 			killer.get().forEach(x -> {
-				System.out.println(x.getIp() + ":" + x.getPort());
+				String proxy = x.getIp() + ":" + x.getPort();
+				ipSet.add(proxy);
+				System.out.println(proxy);
 			});
 			try {
 				TimeUnit.SECONDS.sleep(3);
@@ -25,6 +30,7 @@ public class MiPuKillerTest {
 				e.printStackTrace();
 			}
 		}
+		System.out.println("共有：" + ipSet.size());
 
 	}
 

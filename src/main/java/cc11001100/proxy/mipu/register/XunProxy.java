@@ -1,5 +1,6 @@
 package cc11001100.proxy.mipu.register;
 
+import cc11001100.proxy.mipu.util.HttpUtil;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.http.HttpHost;
 import org.apache.logging.log4j.LogManager;
@@ -27,6 +28,7 @@ public class XunProxy {
 	private static Logger logger = LogManager.getLogger(XunProxy.class);
 
 	public static List<HttpHost> getXunFreeProxy() {
+		logger.info("begin grab xun proxy");
 		JSONObject json = getJson("GET", "http://www.xdaili.cn/ipagent/freeip/getFreeIps");
 		if (json.getIntValue("ERRORCODE") != 0) {
 			logger.error("Get Xun-Proxy free ip list failed. response={}", json.toString());
@@ -42,13 +44,15 @@ public class XunProxy {
 	}
 
 	private static List<HttpHost> check(List<HttpHost> proxyList) {
+		logger.info("begin check xun proxy");
+		long start = System.currentTimeMillis();
 		int threadNum = Runtime.getRuntime().availableProcessors() * 3;
 		ExecutorService executorService = Executors.newFixedThreadPool(threadNum);
 
 		ConcurrentHashMap<HttpHost, Object> placeholder = new ConcurrentHashMap<>();
 		proxyList.forEach(x -> {
 			executorService.execute(() -> {
-				if (null != getBytes("GET", "http://www.baidu.com/", x, null, 1)){
+				if (HttpUtil.test(x)) {
 					placeholder.put(x, 1);
 				}
 			});
@@ -59,7 +63,10 @@ public class XunProxy {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		return placeholder.entrySet().stream().map(Map.Entry::getKey).collect(toList());
+		List<HttpHost> resultList = placeholder.entrySet().stream().map(Map.Entry::getKey).collect(toList());
+		long cost = System.currentTimeMillis() - start;
+		logger.info("check xun proxy cost:{}s", cost / 1000F);
+		return resultList;
 	}
 
 }

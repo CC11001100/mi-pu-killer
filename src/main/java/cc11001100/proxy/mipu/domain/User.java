@@ -10,9 +10,26 @@ public class User {
 
 	private String name;
 	private String passwd;
+
+	/**
+	 * 当前用户的订单号，作为调用APi的访问token
+	 */
 	private String token;
+
+	/**
+	 * 当前用户的注册日期
+	 */
 	private LocalDateTime registerDate;
+
+	/**
+	 * 当前用户是否已经失效
+	 */
 	private Boolean isDied = false;
+
+	/**
+	 * 此用户上次调接口获取代理IP的时间
+	 */
+	private LocalDateTime lastGet = LocalDateTime.now();
 
 	public User() {
 	}
@@ -69,6 +86,14 @@ public class User {
 		this.registerDate = registerDate;
 	}
 
+	public LocalDateTime getLastGet() {
+		return lastGet;
+	}
+
+	public void setLastGet(LocalDateTime lastGet) {
+		this.lastGet = lastGet;
+	}
+
 	@Override
 	public String toString() {
 		return "User{" +
@@ -76,6 +101,8 @@ public class User {
 				", passwd='" + passwd + '\'' +
 				", token='" + token + '\'' +
 				", registerDate=" + registerDate +
+				", isDied=" + isDied +
+				", lastGet=" + lastGet +
 				'}';
 	}
 }

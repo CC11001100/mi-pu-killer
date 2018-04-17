@@ -1,6 +1,7 @@
 package cc11001100.proxy.mipu;
 
 import cc11001100.proxy.mipu.core.MiPuKiller;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashSet;
@@ -12,6 +13,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class MiPuKillerTest {
 
+	@Ignore
 	@Test
 	public void test_001() {
 
@@ -33,5 +35,20 @@ public class MiPuKillerTest {
 		System.out.println("共有：" + ipSet.size());
 
 	}
+
+	@Ignore
+	@Test
+	public void test_002() {
+
+		MiPuKiller miPuKiller = new MiPuKiller();
+		for (int i = 0; i < 10; i++) {
+			System.out.println(System.currentTimeMillis());
+			miPuKiller.get().forEach(x -> {
+				System.out.println(x.getIp() + ":" + x.getPort());
+			});
+		}
+
+	}
+
 
 }

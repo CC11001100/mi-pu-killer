@@ -1,6 +1,8 @@
 package cc11001100.proxy.mipu.register;
 
 import cc11001100.proxy.mipu.domain.User;
+import cc11001100.proxy.mipu.exception.AccountException;
+import com.alibaba.fastjson.JSONObject;
 import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
@@ -14,6 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static cc11001100.proxy.mipu.util.HttpUtil.clearCookie;
+import static cc11001100.proxy.mipu.util.HttpUtil.getJson;
 import static cc11001100.proxy.mipu.util.HttpUtil.getText;
 
 /**
@@ -50,7 +53,10 @@ public class GetToken {
 		List<NameValuePair> paramList = Arrays.asList(new BasicNameValuePair("user_email", user.getName()),
 				new BasicNameValuePair("user_pwd", user.getPasswd()),
 				new BasicNameValuePair("remember", Integer.toString(new Random().nextInt(1))));
-		getText("POST", url, proxy, paramList);
+		JSONObject json = getJson("POST", url, proxy, paramList);
+		if (json.getIntValue("code") != 0) {
+			throw new AccountException(json.toString());
+		}
 	}
 
 	private String parseToken() {

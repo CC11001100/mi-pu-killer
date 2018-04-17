@@ -27,7 +27,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class HttpUtil {
 
 	private static final Logger logger = LogManager.getLogger(HttpUtil.class);
-	public static Integer MAX_RETRY = 5;
+	private static Integer MAX_RETRY = 5;
 	private static Map<String, String> cookieMap = new HashMap<>();
 
 	public static byte[] getBytes(String method, String url, HttpHost proxy, List<NameValuePair> paramsList, int times) {
@@ -47,6 +47,8 @@ public class HttpUtil {
 				if (paramsList != null && !paramsList.isEmpty()) {
 					request.bodyForm(paramsList);
 				}
+			} else if ("HEAD".equals(method)) {
+				request = Request.Head(url);
 			} else {
 				throw new IllegalArgumentException(method);
 			}
@@ -58,27 +60,34 @@ public class HttpUtil {
 
 			// User-Agent先简单的写
 			request.addHeader("User-Agent",
-					"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.119 Safari/537.36");
+					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36");
 			request.addHeader("Cookie", joinCookie());
 			request.connectTimeout(1000 * 10).socketTimeout(1000 * 10);
 
+			HttpResponse httpResponse = null;
 			try {
-				HttpResponse httpResponse = request.execute().returnResponse();
-
-				int statusCode = httpResponse.getStatusLine().getStatusCode();
-				if (statusCode != HttpStatus.SC_OK) {
-					logger.info("url={}, http status={}, try_times={}", url, statusCode, i);
-					continue;
-				}
-
-				Arrays.stream(httpResponse.getHeaders("Set-Cookie")).forEach(header -> {
-					String[] kv = header.getValue().split(";")[0].split("=");
-					cookieMap.put(kv[0], kv[1]);
-				});
-
-				return IOUtils.toByteArray(httpResponse.getEntity().getContent());
+				httpResponse = request.execute().returnResponse();
 			} catch (IOException e) {
 				logger.info("io exception, url={}, try_times={}", url, i);
+				continue;
+			}
+
+			int statusCode = httpResponse.getStatusLine().getStatusCode();
+			if (statusCode != HttpStatus.SC_OK) {
+				logger.info("url={}, http status={}, try_times={}", url, statusCode, i);
+				continue;
+			}
+
+			Arrays.stream(httpResponse.getHeaders("Set-Cookie")).forEach(header -> {
+				String[] kv = header.getValue().split(";")[0].split("=");
+				cookieMap.put(kv[0], kv[1]);
+			});
+
+			try {
+				return IOUtils.toByteArray(httpResponse.getEntity().getContent());
+			} catch (IOException e) {
+//				e.printStackTrace();
+				return null;
 			}
 		}
 		return null;
@@ -114,6 +123,18 @@ public class HttpUtil {
 		return cookieMap.entrySet().stream()
 				.map(entry -> entry.getKey() + "=" + entry.getValue())
 				.collect(Collectors.joining("; "));
+	}
+
+	public static boolean test(HttpHost proxy) {
+		String url = "http://www.baidu.com/";
+		try {
+			HttpResponse httpResponse = Request.Head(url).viaProxy(proxy)
+					.connectTimeout(1000 * 5).socketTimeout(1000 * 30)
+					.execute().returnResponse();
+			return httpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK;
+		} catch (IOException ignored) {
+		}
+		return false;
 	}
 
 }

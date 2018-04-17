@@ -3,6 +3,7 @@ package cc11001100.proxy.mipu.register;
 import cc11001100.ocr.OcrUtil;
 import cc11001100.ocr.clean.SingleColorFilterClean;
 import cc11001100.proxy.mipu.domain.User;
+import cc11001100.proxy.mipu.exception.AccountException;
 import cc11001100.proxy.mipu.exception.RegisterException;
 import cc11001100.proxy.mipu.util.HttpUtil;
 import com.alibaba.fastjson.JSONObject;
@@ -20,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import static cc11001100.proxy.mipu.util.HttpUtil.getBytes;
+import static cc11001100.proxy.mipu.util.HttpUtil.getJson;
+import static cc11001100.proxy.mipu.util.HttpUtil.getText;
 
 /**
  * @author CC11001100
@@ -28,14 +31,15 @@ public class RegisterAccount {
 
 	private static final Logger logger = LogManager.getLogger(RegisterAccount.class);
 
-	private static String[] email = {
-			"qq.com",
-			"163.com",
-			"139.com",
-			"189.com"
-	};
+//	private static String[] email = {
+//			"sina.com",
+//			"gmail.com",
+//			"tom.com",
+//	};
 
-	private static String passwdChar = "qwejzxcbnmWERXVBNM1234567890,.,.,.,.";
+	private static final String PASSWD_CHAR = "qwejzxcbnmWERXVBNM1234567890,.,.,.,.";
+	//	private static final String USERNAME_CHAR = "qwertyuiopasdfghjklzxcvbnm";
+	private static final String USERNAME_CHAR = "1234567890";
 
 	private static OcrUtil ocrUtil;
 
@@ -133,8 +137,10 @@ public class RegisterAccount {
 	}
 
 	public static User register(String name, String passwd, HttpHost proxy) {
+		HttpUtil.clearCookie();
 		try {
-			byte[] imgBytes = getBytes("GET", "https://proxy.mimvp.com/common/ygrcode.php", proxy, null);
+			logger.info("try register {}:{}", name, passwd);
+			byte[] imgBytes = getBytes("GET", "https://proxy.mimvp.com/common/ygrcode.php?rcode=123456", proxy, null);
 			if (imgBytes == null) {
 				throw new RegisterException("cant get captcha img");
 			}
@@ -145,11 +151,19 @@ public class RegisterAccount {
 					new BasicNameValuePair("user_rcode", rcode),
 					new BasicNameValuePair("forurl", "login.php"));
 			JSONObject json = HttpUtil.getJson("POST", "https://proxy.mimvp.com/lib/user_regist_check.php", proxy, paramList);
-			if (json.getIntValue("code") != 0) {
+			if (json == null) {
+				throw new RegisterException("response null");
+			} else if (json.getIntValue("code") != 0) {
+				if (json.getIntValue("code") == 1) {
+					// 因为代理的响应因素，可能注册成功了，但是返回的时候超时了，重复注册显示 已注册，所以尝试登陆一下看有没有注册成功
+					try {
+						String token = new GetToken(name, passwd).get();
+						return new User(name, passwd, token, LocalDateTime.now());
+					} catch (AccountException ignored) {
+					}
+				}
 				throw new RegisterException(json.getString("code_msg"));
 			}
-
-			logger.info("register success, user={}, passwd={}", name, passwd);
 			return new User(name, passwd, new GetToken(name, passwd).get(), LocalDateTime.now());
 		} catch (IOException e) {
 			throw new RegisterException("io error.");
@@ -157,18 +171,29 @@ public class RegisterAccount {
 	}
 
 	private static String randomName() {
+//		Random random = new Random();
+//		StringBuilder name = new StringBuilder();
+//		name.append(Integer.toString(random.nextInt(999999999) + 1000000000));
+//		name.append("@").append(email[random.nextInt(email.length)]);
+//		return name.toString();
 		Random random = new Random();
 		StringBuilder name = new StringBuilder();
-		name.append(Integer.toString(random.nextInt(999999999) + 1000000000));
-		name.append("@").append(email[random.nextInt(email.length)]);
+		for (int i = 0, length = 10; i < length; i++) {
+			name.append(USERNAME_CHAR.charAt(random.nextInt(USERNAME_CHAR.length())));
+		}
+		name.append("@qq.com");
+//		for (int i = 0; i < 3; i++) {
+//			name.append(USERNAME_CHAR.charAt(random.nextInt(USERNAME_CHAR.length())));
+//		}
 		return name.toString();
+//		return "chenjicheng002@gmail.com";
 	}
 
 	private static String randomPasswd() {
 		Random random = new Random();
 		StringBuilder passwd = new StringBuilder();
-		for (int i = 0; i < 10; i++) {
-			passwd.append(passwdChar.charAt(random.nextInt(passwdChar.length())));
+		for (int i = 0; i < 15; i++) {
+			passwd.append(PASSWD_CHAR.charAt(random.nextInt(PASSWD_CHAR.length())));
 		}
 		return passwd.toString();
 	}

@@ -27,7 +27,15 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class HttpUtil {
 
 	private static final Logger logger = LogManager.getLogger(HttpUtil.class);
+
+	/**
+	 * 请求的最大失败重试次数，当达到此重试次数时直接返回null认为请求失败
+	 */
 	private static Integer MAX_RETRY = 5;
+
+	/**
+	 * 每次响应的cookie记下来，在之后的每次请求再带上，模拟浏览器的部分cookie功能
+	 */
 	private static Map<String, String> cookieMap = new HashMap<>();
 
 	public static byte[] getBytes(String method, String url, HttpHost proxy, List<NameValuePair> paramsList, int times) {
@@ -78,6 +86,7 @@ public class HttpUtil {
 				continue;
 			}
 
+			// 存储cookie
 			Arrays.stream(httpResponse.getHeaders("Set-Cookie")).forEach(header -> {
 				String[] kv = header.getValue().split(";")[0].split("=");
 				cookieMap.put(kv[0], kv[1]);
@@ -86,7 +95,6 @@ public class HttpUtil {
 			try {
 				return IOUtils.toByteArray(httpResponse.getEntity().getContent());
 			} catch (IOException e) {
-//				e.printStackTrace();
 				return null;
 			}
 		}
@@ -125,6 +133,12 @@ public class HttpUtil {
 				.collect(Collectors.joining("; "));
 	}
 
+	/**
+	 * 用于测试代理的可用性
+	 *
+	 * @param proxy
+	 * @return
+	 */
 	public static boolean test(HttpHost proxy) {
 		String url = "http://www.baidu.com/";
 		try {

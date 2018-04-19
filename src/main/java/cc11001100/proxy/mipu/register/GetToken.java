@@ -15,9 +15,7 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static cc11001100.proxy.mipu.util.HttpUtil.clearCookie;
-import static cc11001100.proxy.mipu.util.HttpUtil.getJson;
-import static cc11001100.proxy.mipu.util.HttpUtil.getText;
+import static cc11001100.proxy.mipu.util.HttpUtil.*;
 
 /**
  * @author CC11001100
@@ -25,6 +23,9 @@ import static cc11001100.proxy.mipu.util.HttpUtil.getText;
 public class GetToken {
 
 	private static final Logger logger = LogManager.getLogger(GetToken.class);
+	private static final String LOGIN_URL = "https://proxy.mimvp.com/lib/user_login_check.php";
+	private static final String USER_INFO_URL = "https://proxy.mimvp.com/usercenter/userinfo.php";
+
 	private User user;
 	private HttpHost proxy;
 
@@ -42,6 +43,7 @@ public class GetToken {
 	}
 
 	public String get() {
+		clearCookie();
 		login();
 		String token = parseToken();
 		clearCookie();
@@ -49,19 +51,19 @@ public class GetToken {
 	}
 
 	private void login() {
-		String url = "https://proxy.mimvp.com/lib/user_login_check.php";
 		List<NameValuePair> paramList = Arrays.asList(new BasicNameValuePair("user_email", user.getName()),
 				new BasicNameValuePair("user_pwd", user.getPasswd()),
 				new BasicNameValuePair("remember", Integer.toString(new Random().nextInt(1))));
-		JSONObject json = getJson("POST", url, proxy, paramList);
-		if (json.getIntValue("code") != 0) {
+		JSONObject json = getJson("POST", LOGIN_URL, proxy, paramList);
+		if (json == null) {
+			throw new AccountException("login response null");
+		} else if (json.getIntValue("code") != 0) {
 			throw new AccountException(json.toString());
 		}
 	}
 
 	private String parseToken() {
-		String url = "https://proxy.mimvp.com/usercenter/userinfo.php";
-		String htmlContent = getText("POST", url, proxy, null);
+		String htmlContent = getText("POST", USER_INFO_URL, proxy, null);
 		Matcher matcher = Pattern.compile("orderdetail.php\\?orderid=([0-9]+)").matcher(htmlContent);
 		if (matcher.find()) {
 			String token = matcher.group(1);

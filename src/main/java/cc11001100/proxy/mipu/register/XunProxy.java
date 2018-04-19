@@ -13,7 +13,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static cc11001100.proxy.mipu.util.HttpUtil.getBytes;
 import static cc11001100.proxy.mipu.util.HttpUtil.getJson;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;

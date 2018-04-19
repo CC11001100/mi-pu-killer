@@ -5,7 +5,6 @@ import cc11001100.proxy.mipu.domain.User;
 import cc11001100.proxy.mipu.exception.RegisterException;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpHost;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,7 +13,6 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static cc11001100.proxy.mipu.register.RegisterAccount.register;
@@ -29,6 +27,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.io.FileUtils.readFileToString;
+import static org.apache.commons.io.FileUtils.writeStringToFile;
 
 /**
  * @author CC11001100
@@ -58,24 +57,36 @@ public class MiPuKiller {
 	private void init() {
 		JSONObject config = readConfig();
 		initUserList(config);
-		registerSaveConfigHook(config);
+		registerSaveConfigHook();
 	}
 
+	/**
+	 * 配置文件默认保存在用户的临时目录
+	 *
+	 * @return
+	 * @apiNote windows环境测试通过，其它环境未测试
+	 */
 	private String getConfigFilePath() {
 		String tempDirectory = System.getProperty("java.io.tmpdir");
 		return tempDirectory + "mi_pu_killer\\config.json";
 	}
 
+	/**
+	 * 为了避免频繁的注册账号，用一个配置文件来保存当前注册的有效的账号
+	 * 每次启动前优先读取使用配置文件中的账户，当不够时再去注册
+	 *
+	 * @return
+	 */
 	private JSONObject readConfig() {
-		String configContent = "";
+		String configFilePath = getConfigFilePath();
 		try {
-			String configFilePath = getConfigFilePath();
-			configContent = readFileToString(new File(configFilePath), UTF_8);
+			String configContent = readFileToString(new File(configFilePath), UTF_8);
 			logger.info("recovery config from {}", configFilePath);
+			return parseObject(configContent);
 		} catch (IOException e) {
 			logger.warn("Not found config file {}", getConfigFilePath());
+			return null;
 		}
-		return parseObject(configContent);
 	}
 
 	private void initUserList(JSONObject config) {
@@ -87,21 +98,22 @@ public class MiPuKiller {
 			userList = ofNullable(config.getJSONArray("users")).orElse(new JSONArray())
 					.stream().map(userWrapper -> parseObject(userWrapper.toString(), User.class))
 					.collect(toList());
+			userList.forEach(user -> logger.info("read user {} from config", user.getName()));
 		}
 
+		// 如果配置文件中没有足够的账户，则注册新的账号直到达到要求
 		if (userList.size() < useHowManyUser) {
 			supplementUser(useHowManyUser);
 		}
 	}
 
-	private void registerSaveConfigHook(JSONObject config) {
+	private void registerSaveConfigHook() {
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			// save config
-			JSONObject configToSave = ofNullable(config).orElse(new JSONObject());
+			JSONObject configToSave = new JSONObject();
 			configToSave.put("users", userList);
 			String configJsonString = toJSONString(configToSave, WriteMapNullValue, PrettyFormat);
 			try {
-				FileUtils.writeStringToFile(new File(getConfigFilePath()), configJsonString, UTF_8);
+				writeStringToFile(new File(getConfigFilePath()), configJsonString, UTF_8);
 				logger.info("config file save success.");
 			} catch (IOException e) {
 				logger.info("save config file failed");
@@ -115,12 +127,13 @@ public class MiPuKiller {
 			if (proxyListForRegister.isEmpty()) {
 				logger.info("get xun proxy");
 				proxyListForRegister = getXunFreeProxy();
-				if (proxyListForRegister.isEmpty()) {
-					throw new RegisterException("no proxy can use.");
-				}
 			}
-			HttpHost proxy = proxyListForRegister.remove(0);
-			logger.info("use proxy {}:{} register", proxy.getHostName(), proxy.getPort());
+
+			HttpHost proxy = null;
+			if (!proxyListForRegister.isEmpty()) {
+				proxy = proxyListForRegister.remove(0);
+				logger.info("use proxy {}:{} register", proxy.getHostName(), proxy.getPort());
+			}
 
 			try {
 				User user = register(proxy);
@@ -163,20 +176,24 @@ public class MiPuKiller {
 				userList.remove(user);
 				continue;
 			} else if (user.getLastGet().plusSeconds(10).isAfter(LocalDateTime.now())) {
-				// 用户是有效的，同时上次调用时间与当前时间间隔超过10秒
+				// 用户是有效的，同时上次调用时间与当前时间间隔超过10秒，调用频繁不允许
 				continue;
 			}
 
 			JSONObject json = getJson("GET", String.format(url, user.getToken()));
+			if(json==null){
+				logger.info("get api response null");
+				continue;
+			}
 			int code = json.getIntValue("code");
-
 			user.setLastGet(LocalDateTime.now());
+
 			if (code == 0) {
 				// 调用成功
 				return extractResult(json);
 			} else if (code == 13) {
 				// 调用太频繁
-				logger.info("{} code 13, to fast, next.", user.getName());
+				logger.info("{} code 13, to fast.", user.getName());
 			} else if (code == 14) {
 				// 调用太频繁被封禁掉了,推荐一分钟调用一次...
 				logger.info("code=14");

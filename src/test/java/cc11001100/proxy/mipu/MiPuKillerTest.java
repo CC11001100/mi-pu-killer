@@ -36,7 +36,6 @@ public class MiPuKillerTest {
 
 	}
 
-	@Ignore
 	@Test
 	public void test_002() {
 

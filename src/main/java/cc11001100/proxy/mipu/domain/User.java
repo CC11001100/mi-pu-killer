@@ -17,17 +17,18 @@ public class User {
 	private String token;
 
 	/**
-	 * 当前用户的注册日期
+	 * 当前用户的注册日期，用于计算账户试用功能的过期时间
 	 */
 	private LocalDateTime registerDate;
 
 	/**
-	 * 当前用户是否已经失效
+	 * 标识当前用户是否已经失效
 	 */
 	private Boolean isDied = false;
 
 	/**
-	 * 此用户上次调接口获取代理IP的时间
+	 * 此用户上次调接口获取代理IP的时间，用于限制调用接口的频率
+	 * 频率调用过快也不会返回有效结果，不如自觉遵守其限制
 	 */
 	private LocalDateTime lastGet = LocalDateTime.now();
 

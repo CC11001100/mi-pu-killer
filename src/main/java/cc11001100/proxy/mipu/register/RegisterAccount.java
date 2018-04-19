@@ -21,8 +21,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import static cc11001100.proxy.mipu.util.HttpUtil.getBytes;
-import static cc11001100.proxy.mipu.util.HttpUtil.getJson;
-import static cc11001100.proxy.mipu.util.HttpUtil.getText;
 
 /**
  * @author CC11001100
@@ -31,14 +29,10 @@ public class RegisterAccount {
 
 	private static final Logger logger = LogManager.getLogger(RegisterAccount.class);
 
-//	private static String[] email = {
-//			"sina.com",
-//			"gmail.com",
-//			"tom.com",
-//	};
+	private static final String CAPTCHA_URL = "https://proxy.mimvp.com/common/ygrcode.php?rcode=123456";
+	private static final String REGISTER_URL = "https://proxy.mimvp.com/lib/user_regist_check.php";
 
 	private static final String PASSWD_CHAR = "qwejzxcbnmWERXVBNM1234567890,.,.,.,.";
-	//	private static final String USERNAME_CHAR = "qwertyuiopasdfghjklzxcvbnm";
 	private static final String USERNAME_CHAR = "1234567890";
 
 	private static OcrUtil ocrUtil;
@@ -140,7 +134,7 @@ public class RegisterAccount {
 		HttpUtil.clearCookie();
 		try {
 			logger.info("try register {}:{}", name, passwd);
-			byte[] imgBytes = getBytes("GET", "https://proxy.mimvp.com/common/ygrcode.php?rcode=123456", proxy, null);
+			byte[] imgBytes = getBytes("GET", CAPTCHA_URL, proxy, null);
 			if (imgBytes == null) {
 				throw new RegisterException("cant get captcha img");
 			}
@@ -150,43 +144,45 @@ public class RegisterAccount {
 					new BasicNameValuePair("user_pwd", passwd),
 					new BasicNameValuePair("user_rcode", rcode),
 					new BasicNameValuePair("forurl", "login.php"));
-			JSONObject json = HttpUtil.getJson("POST", "https://proxy.mimvp.com/lib/user_regist_check.php", proxy, paramList);
+			JSONObject json = HttpUtil.getJson("POST", REGISTER_URL, proxy, paramList);
 			if (json == null) {
 				throw new RegisterException("response null");
 			} else if (json.getIntValue("code") != 0) {
+				// 若返回非0状态码，则说明注册失败了
+				// 但是也有这一种情况：
+				// 提交表单时重试了多次第一次请求发送出去到达服务器但是返回的时候出了问题
+				// 然后重试第二次，因为第一次注册成功了所以第二次返回用户已被注册，
+				// 为了确认此账户是否是自己之前注册成功的，就尝试登陆一下
+				// code == 1 表示用户已被注册
 				if (json.getIntValue("code") == 1) {
-					// 因为代理的响应因素，可能注册成功了，但是返回的时候超时了，重复注册显示 已注册，所以尝试登陆一下看有没有注册成功
 					try {
 						String token = new GetToken(name, passwd).get();
-						return new User(name, passwd, token, LocalDateTime.now());
+						if (token != null) {
+							return new User(name, passwd, token, LocalDateTime.now());
+						}
 					} catch (AccountException ignored) {
 					}
 				}
 				throw new RegisterException(json.getString("code_msg"));
 			}
-			return new User(name, passwd, new GetToken(name, passwd).get(), LocalDateTime.now());
+			String token = new GetToken(name, passwd).get();
+			if (token == null) {
+				throw new RegisterException("register success, but user=" + name + " cant get token");
+			}
+			return new User(name, passwd, token, LocalDateTime.now());
 		} catch (IOException e) {
 			throw new RegisterException("io error.");
 		}
 	}
 
 	private static String randomName() {
-//		Random random = new Random();
-//		StringBuilder name = new StringBuilder();
-//		name.append(Integer.toString(random.nextInt(999999999) + 1000000000));
-//		name.append("@").append(email[random.nextInt(email.length)]);
-//		return name.toString();
 		Random random = new Random();
 		StringBuilder name = new StringBuilder();
 		for (int i = 0, length = 10; i < length; i++) {
 			name.append(USERNAME_CHAR.charAt(random.nextInt(USERNAME_CHAR.length())));
 		}
 		name.append("@qq.com");
-//		for (int i = 0; i < 3; i++) {
-//			name.append(USERNAME_CHAR.charAt(random.nextInt(USERNAME_CHAR.length())));
-//		}
 		return name.toString();
-//		return "chenjicheng002@gmail.com";
 	}
 
 	private static String randomPasswd() {
